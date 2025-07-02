@@ -1,6 +1,8 @@
 on:
   workflow_dispatch: {}
-  pull_request: {}
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -9,42 +11,44 @@ on:
   schedule:
     - cron: '50 12 * * *'
 
-name: Semgrep
+name: Semgrep OSS Diff Scan
 
 jobs:
   semgrep:
-    name: semgrep/diff-scan
-    runs-on: ubuntu-24.04
-    container:
-      image: returntocorp/semgrep
+    name: semgrep/oss-diff
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout PR code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
 
-      - run: |
-          echo "🔍 Fixing Git safe directory"
-          git config --global --add safe.directory /__w/animated-journey/animated-journey
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-          echo "🔍 Checking Git state"
-          git branch -a
-          git log --oneline | head -n 5
+      - name: Install Semgrep OSS
+        run: pip install semgrep
 
-          echo "🔁 Diff against: origin/${{ github.base_ref }}"
+      - name: Fix Git safe directory & fetch base
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
           git fetch origin ${{ github.base_ref }}
 
-      - run: |
-          echo "🚀 Running Semgrep diff scan"
-          python3 -m semgrep --baseline-ref=origin/${{ github.base_ref }} --config auto
+      - name: Run Semgrep on PR diff
+        run: |
+          echo "🚀 Running Semgrep OSS Diff Scan"
+          semgrep --baseline-ref=origin/${{ github.base_ref }} --config auto
 
   approve:
     name: Approve PR if Semgrep passes
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: semgrep
     steps:
       - uses: actions/checkout@v3
-      - name: Approve PR
+      - name: Auto-approve PR
         if: success()
         run: gh pr review --approve "${{ github.event.pull_request.html_url }}"
         env:
