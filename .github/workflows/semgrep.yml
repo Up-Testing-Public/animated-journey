@@ -36,7 +36,7 @@ jobs:
 
       - run: |
           echo "🚀 Running Semgrep diff scan"
-          semgrep --baseline-ref=origin/${{ github.base_ref }} --config auto
+          python3 -m semgrep --baseline-ref=origin/${{ github.base_ref }} --config auto
 
   approve:
     name: Approve PR if Semgrep passes
