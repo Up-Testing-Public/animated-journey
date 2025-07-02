@@ -1,0 +1,1 @@
+AWS_SECRETS = "ihdbhsbdvhjsdf"
