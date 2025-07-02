@@ -40,7 +40,7 @@ jobs:
           echo "🚀 Semgrep diff scan (CI + credentials) against origin/${{ github.base_ref }}"
           semgrep scan \
             --config p/ci \
-            --config p/credentials \
+            --config p/secrets \
             --baseline-commit origin/${{ github.base_ref }} \
             --error
 
@@ -48,7 +48,7 @@ jobs:
         run: |
           semgrep scan \
             --config p/ci \
-            --config p/credentials \
+            --config p/secrets \
             --baseline-commit origin/${{ github.base_ref }} \
             --json > semgrep-results.json
 
