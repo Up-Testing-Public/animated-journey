@@ -7,14 +7,13 @@ on:
     paths:
       - .github/workflows/semgrep.yml
   schedule:
-    # random HH:MM to avoid a load spike on GitHub Actions at 00:00
-    - cron: '50 12 * * *'
+    - cron: '50 12 * * *'  # daily scan
 
 name: Semgrep
 
 jobs:
   semgrep:
-    name: semgrep/scan
+    name: semgrep/diff-scan
     runs-on: ubuntu-24.04
     container:
       image: returntocorp/semgrep
@@ -22,17 +21,25 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
       - run: |
-          echo "Running semgrep on diffs"
-          semgrep --baseline-ref=origin/main --config auto
-          
+          echo "🔍 Checking Git state"
+          git branch -a
+          git log --oneline | head -n 5
+          echo "🔁 Diff against: origin/${{ github.base_ref }}"
+          git fetch origin ${{ github.base_ref }}
+
+      - run: |
+          echo "🚀 Running Semgrep diff scan"
+          semgrep --baseline-ref=origin/${{ github.base_ref }} --config auto
+
   approve:
     name: Approve PR if Semgrep passes
     runs-on: ubuntu-24.04
     needs: semgrep
     steps:
-      - name: Setup GitHub CLI
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
       - name: Approve PR
         if: success()
         run: gh pr review --approve "${{ github.event.pull_request.html_url }}"
