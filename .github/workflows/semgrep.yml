@@ -35,20 +35,18 @@ jobs:
           git config --global --add safe.directory $GITHUB_WORKSPACE
           git fetch origin ${{ github.base_ref }}
 
-      - name: Run Semgrep diff-only scan (CI + credentials)
+      - name: Run Semgrep diff-only scan (all OSS rules)
         run: |
-          echo "🚀 Semgrep diff scan (CI + credentials) against origin/${{ github.base_ref }}"
+          echo "🚀 Semgrep diff scan (auto) against origin/${{ github.base_ref }}"
           semgrep scan \
-            --config p/ci \
-            --config p/secrets \
+            --config auto \
             --baseline-commit origin/${{ github.base_ref }} \
             --error
 
       - name: Save Semgrep JSON results
         run: |
           semgrep scan \
-            --config p/ci \
-            --config p/secrets \
+            --config auto \
             --baseline-commit origin/${{ github.base_ref }} \
             --json > semgrep-results.json
 
