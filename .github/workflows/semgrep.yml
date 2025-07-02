@@ -7,7 +7,7 @@ on:
     paths:
       - .github/workflows/semgrep.yml
   schedule:
-    - cron: '50 12 * * *'  # daily scan
+    - cron: '50 12 * * *'
 
 name: Semgrep
 
@@ -24,9 +24,13 @@ jobs:
           ref: ${{ github.head_ref }}
 
       - run: |
+          echo "🔍 Fixing Git safe directory"
+          git config --global --add safe.directory /__w/animated-journey/animated-journey
+
           echo "🔍 Checking Git state"
           git branch -a
           git log --oneline | head -n 5
+
           echo "🔁 Diff against: origin/${{ github.base_ref }}"
           git fetch origin ${{ github.base_ref }}
 
