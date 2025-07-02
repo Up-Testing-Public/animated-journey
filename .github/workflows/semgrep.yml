@@ -43,6 +43,16 @@ jobs:
             --baseline-commit origin/${{ github.base_ref }} \
             --error
 
+      - name: Save Semgrep JSON results
+        run: |
+          semgrep scan \
+            --config p/default \
+            --baseline-commit origin/${{ github.base_ref }} \
+            --json > semgrep-results.json
+
+      - name: Dump Semgrep results to logs
+        run: cat semgrep-results.json
+
   approve:
     name: Auto-approve if Semgrep passes
     runs-on: ubuntu-latest
