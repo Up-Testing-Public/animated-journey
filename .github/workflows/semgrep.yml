@@ -14,16 +14,18 @@ name: Semgrep
 
 jobs:
   semgrep:
-    name: semgrep/ci
+    name: semgrep/scan
     runs-on: ubuntu-24.04
     container:
       image: returntocorp/semgrep
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # required for comparing diffs
       - run: |
-          echo "Running semgrep"
-          semgrep ci
-
+          echo "Running semgrep scan on diffs"
+          semgrep scan --baseline-ref origin/main --config auto
+          
   approve:
     name: Approve PR if Semgrep passes
     runs-on: ubuntu-24.04
