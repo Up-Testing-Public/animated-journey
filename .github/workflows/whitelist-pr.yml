@@ -40,10 +40,11 @@ jobs:
               console.log('Not a PR comment; exiting.');
               return;
             }
-            await github.issues.addLabels({
+            const prNumber = issue.number;
+            await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: issue.number,
+              issue_number: prNumber,
               labels: ['skip-semgrep'],
             });
-            console.log(`✅ PR #${issue.number} whitelisted by ${commenter}.`);
+            console.log(`✅ PR #${prNumber} whitelisted by ${commenter}.`);
