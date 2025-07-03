@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, labeled]    # include 'labeled'
   push:
     branches:
       - main
@@ -15,6 +16,7 @@ name: Semgrep OSS Diff Scan
 
 jobs:
   semgrep:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-semgrep') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
