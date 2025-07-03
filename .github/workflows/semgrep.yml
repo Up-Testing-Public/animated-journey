@@ -71,11 +71,62 @@ jobs:
       - name: Send Slack alert
         run: |
           curl -X POST -H 'Content-type: application/json' \
-            --data @- "${{ secrets.SLACK_WEBHOOK_URL }}" <<EOF
+            "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            --data @- <<'EOF'
           {
-            "text": ":rotating_light: PR #${{ github.event.pull_request.number }} in *${{ github.repository }}* was *blocked* by Semgrep scan.\n<${{ github.event.pull_request.html_url }}|View and fix issues>"
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": ":rotating_light: Semgrep Scan Blocked PR",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\n${{ github.repository }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*PR:*\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}>"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Findings:*\n$(jq '.results|length' semgrep-results.json) total, $(jq '[.results[]|select(.extra.metadata.severity==\"ERROR\")]|length' semgrep-results.json) blocking"
+                  }
+                ]
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Example Failure:*\n• `$(jq -r '.results[0].check_id' semgrep-results.json)` — $(jq -r '.results[0].extra.message' semgrep-results.json | head -c 150)..."
+                }
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Full Report"
+                    },
+                    "url": "${{ github.event.pull_request.html_url }}"
+                  }
+                ]
+              }
+            ]
           }
           EOF
+
 
   approve:
     name: Auto-approve if Semgrep passes
