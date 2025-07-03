@@ -15,9 +15,9 @@ jobs:
         uses: actions/github-script@v6
         env:
           ALLOWED_USERS: |
-            indrajith-s
+            Indrajith-S
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.WHITELIST_PAT }}
           script: |
             const comment = context.payload.comment.body.trim();
             console.log("DEBUG: comment body =", comment);
