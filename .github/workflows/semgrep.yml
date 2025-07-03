@@ -61,74 +61,60 @@ jobs:
       - name: Dump results to logs
         run: cat semgrep-results.json
 
-    notify_slack:
-      name: Notify Slack on blocked PR
-      needs: semgrep
-      if: ${{ needs.semgrep.result == 'failure' }}
-      runs-on: ubuntu-latest
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      steps:
-        - name: Parse Semgrep results
-          run: |
-            total=$(jq '.results|length' semgrep-results.json)
-            blocking=$(jq '[.results[]|select(.extra.metadata.severity=="ERROR")]|length' semgrep-results.json)
-            rule=$(jq -r '.results[0].check_id' semgrep-results.json)
-            msg=$(jq -r '.results[0].extra.message' semgrep-results.json | head -c 150)
-            cat <<EOF > payload.json
-  {
-    "blocks": [
-      {
-        "type": "header",
-        "text": {
-          "type": "plain_text",
-          "text": ":rotating_light: Semgrep Scan 🚫 PR Blocked",
-          "emoji": true
-        }
-      },
-      {
-        "type": "section",
-        "fields": [
-          {
-            "type": "mrkdwn",
-            "text": "*Repository:*\n${GITHUB_REPOSITORY}"
-          },
-          {
-            "type": "mrkdwn",
-            "text": "*PR:*\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}>"
-          },
-          {
-            "type": "mrkdwn",
-            "text": "*Findings:*\n${total} total, ${blocking} blocking"
-          }
-        ]
-      },
-      {
-        "type": "divider"
-      },
-      {
-        "type": "section",
-        "text": {
-          "type": "mrkdwn",
-          "text": "*Example Failure:*\n• `${rule}` — ${msg}…"
-        }
-      },
-      {
-        "type": "section",
-        "text": {
-          "type": "mrkdwn",
-          "text": "<${{ github.event.pull_request.html_url }}|View and fix issues>"
-        }
-      }
-    ]
-  }
-  EOF
+  notify_slack:
+    name: Notify Slack on blocked PR
+    needs: semgrep
+    if: ${{ always() && needs.semgrep.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-        - name: Send to Slack
-          run: |
-            curl -X POST -H "Content-Type: application/json" \
-                 --data @payload.json \
-                 "${SLACK_WEBHOOK_URL}"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Save JSON results
+        run: |
+          pip install semgrep
+          semgrep scan \
+            --config p/gitleaks \
+            --config p/secrets \
+            --baseline-commit origin/${{ github.base_ref }} \
+            --json > semgrep-results.json
+
+      - name: Send Slack alert
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          total=$(jq '.results|length' semgrep-results.json)
+          blocking=$(jq '[.results[]|select(.extra.metadata.severity=="ERROR")] | length' semgrep-results.json)
+          rule=$(jq -r '.results[0].check_id' semgrep-results.json || echo "n/a")
+          msg=$(jq -r '.results[0].extra.message' semgrep-results.json | head -c 150 || echo "n/a")
+          
+          curl -X POST -H 'Content-type: application/json' \
+          --data "$(cat <<EOF
+          {
+            \"blocks\": [
+              { \"type\": \"header\", \"text\": { \"type\": \"plain_text\", \"text\": \":rotating_light: Semgrep Scan Blocked PR\", \"emoji\": true }},
+              { \"type\": \"section\", \"fields\": [
+                { \"type\": \"mrkdwn\", \"text\": \"*Repository:*\\n${{ github.repository }}\" },
+                { \"type\": \"mrkdwn\", \"text\": \"*PR:*\\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}>\" },
+                { \"type\": \"mrkdwn\", \"text\": \"*Findings:*\\n${total} total, ${blocking} blocking\" }
+              ]},
+              { \"type\": \"divider\" },
+              { \"type\": \"section\", \"text\": { \"type\": \"mrkdwn\", \"text\": \"*Example Failure:*\\n• `${rule}` — ${msg}...\" }},
+              { \"type\": \"actions\", \"elements\": [
+                { \"type\": \"button\", \"text\": { \"type\": \"plain_text\", \"text\": \"View PR\" }, \"url\": \"${{ github.event.pull_request.html_url }}\" }
+              ]}
+            ]
+          }
+          EOF
+          )" "$SLACK_WEBHOOK_URL"
 
   approve:
     name: Auto-approve if Semgrep passes
