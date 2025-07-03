@@ -5,7 +5,7 @@ on:
     types: [created]
 
 permissions:
-  issues: write   # needed to add labels
+  issues: write
 
 jobs:
   whitelist-pr:
@@ -16,19 +16,22 @@ jobs:
         env:
           ALLOWED_USERS: |
             Indrajith-S
-
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const comment = context.payload.comment.body.trim();
-            // only act on the exact command
+            console.log("DEBUG: comment body =", comment);
+            const commenter = context.payload.comment.user.login;
+            console.log("DEBUG: commenter login =", commenter);
+            const allowed = process.env.ALLOWED_USERS
+              .split('\n')
+              .map(u => u.trim().toLowerCase());
+            console.log("DEBUG: allowed list =", allowed);
             if (comment !== '/skip-semgrep') {
               console.log('No whitelist command; exiting.');
               return;
             }
-            const commenter = context.payload.comment.user.login;
-            const allowed = process.env.ALLOWED_USERS.split('\n').map(u => u.trim());
-            if (!allowed.includes(commenter)) {
+            if (!allowed.includes(commenter.toLowerCase())) {
               console.log(`User ${commenter} not in allowed list; exiting.`);
               return;
             }
@@ -37,11 +40,10 @@ jobs:
               console.log('Not a PR comment; exiting.');
               return;
             }
-            const prNumber = issue.number;
             await github.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: prNumber,
+              issue_number: issue.number,
               labels: ['skip-semgrep'],
             });
-            console.log(`PR #${prNumber} whitelisted by ${commenter}.`);
+            console.log(`✅ PR #${issue.number} whitelisted by ${commenter}.`);
