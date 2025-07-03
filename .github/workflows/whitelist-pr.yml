@@ -1,4 +1,4 @@
-name: “Whitelist PR via Comment”
+name: "Whitelist PR via Comment"
 
 on:
   issue_comment:
