@@ -1,0 +1,47 @@
+name: “Whitelist PR via Comment”
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write   # needed to add labels
+
+jobs:
+  whitelist-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Whitelist PR if `/skip-semgrep` by allowed user
+        uses: actions/github-script@v6
+        env:
+          ALLOWED_USERS: |
+            Indrajith-S
+
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = context.payload.comment.body.trim();
+            // only act on the exact command
+            if (comment !== '/skip-semgrep') {
+              console.log('No whitelist command; exiting.');
+              return;
+            }
+            const commenter = context.payload.comment.user.login;
+            const allowed = process.env.ALLOWED_USERS.split('\n').map(u => u.trim());
+            if (!allowed.includes(commenter)) {
+              console.log(`User ${commenter} not in allowed list; exiting.`);
+              return;
+            }
+            const issue = context.payload.issue;
+            if (!issue.pull_request) {
+              console.log('Not a PR comment; exiting.');
+              return;
+            }
+            const prNumber = issue.number;
+            await github.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: ['skip-semgrep'],
+            });
+            console.log(`PR #${prNumber} whitelisted by ${commenter}.`);
