@@ -20,13 +20,19 @@ permissions:
 
 jobs:
   semgrep:
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-semgrep') }}
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'skip-semgrep') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 2
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-semgrep
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -41,41 +47,17 @@ jobs:
           git config --global --add safe.directory $GITHUB_WORKSPACE
           git fetch origin ${{ github.base_ref }}
 
-      - name: Run Semgrep diff-only scan (gitleaks + secrets)
+      - name: Run Semgrep diff scan + save JSON
         run: |
           echo "🚀 Semgrep diff scan (p/gitleaks + p/secrets) against origin/${{ github.base_ref }}"
           semgrep scan \
             --config p/gitleaks \
             --config p/secrets \
             --baseline-commit origin/${{ github.base_ref }} \
-            --error
-
-      - name: Save JSON results
-        run: |
-          semgrep scan \
-            --config p/gitleaks \
-            --config p/secrets \
-            --baseline-commit origin/${{ github.base_ref }} \
+            --error \
             --json > semgrep-results.json
 
-      - name: Dump results to logs
-        run: cat semgrep-results.json
-
-  # notify_slack:
-  #   name: Notify Slack on blocked PR
-  #   needs: semgrep
-  #   # ensure this job runs even if semgrep fails, then filter on failure
-  #   if: ${{ always() && needs.semgrep.result == 'failure' }}
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Send Slack alert
-  #       run: |
-  #         curl -X POST -H 'Content-type: application/json' \
-  #           --data @- "${{ secrets.SLACK_WEBHOOK_URL }}" <<EOF
-  #         {
-  #           "text": ":rotating_light: PR #${{ github.event.pull_request.number }} in *${{ github.repository }}* was *blocked* by Semgrep scan.\n<${{ github.event.pull_request.html_url }}|View and fix issues>"
-  #         }
-  #         EOF
+          cat semgrep-results.json
 
   notify_slack:
     name: Notify Slack on blocked PR
