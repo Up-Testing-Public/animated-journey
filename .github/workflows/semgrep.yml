@@ -61,19 +61,38 @@ jobs:
       - name: Dump results to logs
         run: cat semgrep-results.json
 
+  # notify_slack:
+  #   name: Notify Slack on blocked PR
+  #   needs: semgrep
+  #   # ensure this job runs even if semgrep fails, then filter on failure
+  #   if: ${{ always() && needs.semgrep.result == 'failure' }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Send Slack alert
+  #       run: |
+  #         curl -X POST -H 'Content-type: application/json' \
+  #           --data @- "${{ secrets.SLACK_WEBHOOK_URL }}" <<EOF
+  #         {
+  #           "text": ":rotating_light: PR #${{ github.event.pull_request.number }} in *${{ github.repository }}* was *blocked* by Semgrep scan.\n<${{ github.event.pull_request.html_url }}|View and fix issues>"
+  #         }
+  #         EOF
+
   notify_slack:
     name: Notify Slack on blocked PR
     needs: semgrep
-    # ensure this job runs even if semgrep fails, then filter on failure
-    if: ${{ always() && needs.semgrep.result == 'failure' }}
+    if: ${{ always() && needs.semgrep.result == 'failure' && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Send Slack alert
         run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_URL=${{ github.event.pull_request.html_url }}
+          REPO=${{ github.repository }}
+
           curl -X POST -H 'Content-type: application/json' \
             --data @- "${{ secrets.SLACK_WEBHOOK_URL }}" <<EOF
           {
-            "text": ":rotating_light: PR #${{ github.event.pull_request.number }} in *${{ github.repository }}* was *blocked* by Semgrep scan.\n<${{ github.event.pull_request.html_url }}|View and fix issues>"
+            "text": ":rotating_light: *Semgrep Blocked PR*\n*Repo:* ${REPO}\n*PR #:* ${PR_NUMBER}\n<${PR_URL}|View and fix issues>"
           }
           EOF
 
