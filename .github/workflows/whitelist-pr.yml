@@ -1,77 +1,77 @@
-name: "Whitelist PR via Comment"
+# name: "Whitelist PR via Comment"
 
-on:
-  issue_comment:
-    types: [created]
+# on:
+#   issue_comment:
+#     types: [created]
 
-permissions:
-  issues: write
+# permissions:
+#   issues: write
 
-jobs:
-  whitelist-pr:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Whitelist PR if `/skip-semgrep` by allowed user
-        uses: actions/github-script@v6
-        env:
-          ALLOWED_USERS: |
-            Indrajith-S
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-        with:
-          github-token: ${{ secrets.PAT_YOGENDRASRIVASTAVA }}
-          script: |
-            const comment = context.payload.comment.body.trim();
-            console.log("DEBUG: comment body =", comment);
-            const commenter = context.payload.comment.user.login;
-            console.log("DEBUG: commenter login =", commenter);
-            const allowed = process.env.ALLOWED_USERS
-              .split('\n')
-              .map(u => u.trim().toLowerCase());
-            console.log("DEBUG: allowed list =", allowed);
-            if (comment !== '/skip-semgrep') {
-              console.log('No whitelist command; exiting.');
-              return;
-            }
-            if (!allowed.includes(commenter.toLowerCase())) {
-              console.log(`User ${commenter} not in allowed list; exiting.`);
+# jobs:
+#   whitelist-pr:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Whitelist PR if `/skip-semgrep` by allowed user
+#         uses: actions/github-script@v6
+#         env:
+#           ALLOWED_USERS: |
+#             Indrajith-S
+#           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+#         with:
+#           github-token: ${{ secrets.PAT_YOGENDRASRIVASTAVA }}
+#           script: |
+#             const comment = context.payload.comment.body.trim();
+#             console.log("DEBUG: comment body =", comment);
+#             const commenter = context.payload.comment.user.login;
+#             console.log("DEBUG: commenter login =", commenter);
+#             const allowed = process.env.ALLOWED_USERS
+#               .split('\n')
+#               .map(u => u.trim().toLowerCase());
+#             console.log("DEBUG: allowed list =", allowed);
+#             if (comment !== '/skip-semgrep') {
+#               console.log('No whitelist command; exiting.');
+#               return;
+#             }
+#             if (!allowed.includes(commenter.toLowerCase())) {
+#               console.log(`User ${commenter} not in allowed list; exiting.`);
 
-              // 🔔 Send Slack alert for unauthorized attempt
-              const repo = `${context.repo.owner}/${context.repo.repo}`;
-              const prNumber = context.payload.issue.number;
-              const prUrl = `https://github.com/${repo}/pull/${prNumber}`;
-              const message = {
-                text: `:no_entry: *Unauthorized* \`/skip-semgrep\` attempt by *${commenter}* on PR <${prUrl}|#${prNumber}> in *${repo}*. Semgrep NOT skipped.`
-              };
-              await fetch(process.env.SLACK_WEBHOOK, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(message),
-              });
+#               // 🔔 Send Slack alert for unauthorized attempt
+#               const repo = `${context.repo.owner}/${context.repo.repo}`;
+#               const prNumber = context.payload.issue.number;
+#               const prUrl = `https://github.com/${repo}/pull/${prNumber}`;
+#               const message = {
+#                 text: `:no_entry: *Unauthorized* \`/skip-semgrep\` attempt by *${commenter}* on PR <${prUrl}|#${prNumber}> in *${repo}*. Semgrep NOT skipped.`
+#               };
+#               await fetch(process.env.SLACK_WEBHOOK, {
+#                 method: 'POST',
+#                 headers: { 'Content-Type': 'application/json' },
+#                 body: JSON.stringify(message),
+#               });
 
-              return;
-            }
-            const issue = context.payload.issue;
-            if (!issue.pull_request) {
-              console.log('Not a PR comment; exiting.');
-              return;
-            }
-            const prNumber = issue.number;
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              labels: ['skip-semgrep'],
-            });
-            console.log(`✅ PR #${prNumber} whitelisted by ${commenter}.`);
+#               return;
+#             }
+#             const issue = context.payload.issue;
+#             if (!issue.pull_request) {
+#               console.log('Not a PR comment; exiting.');
+#               return;
+#             }
+#             const prNumber = issue.number;
+#             await github.rest.issues.addLabels({
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               issue_number: prNumber,
+#               labels: ['skip-semgrep'],
+#             });
+#             console.log(`✅ PR #${prNumber} whitelisted by ${commenter}.`);
 
-            // ✅ Send Slack alert for successful whitelist
-            const repo = `${context.repo.owner}/${context.repo.repo}`;
-            const prUrl = `https://github.com/${repo}/pull/${prNumber}`;
-            const message = {
-              text: `:white_check_mark: *Authorized* \`/skip-semgrep\` by *${commenter}* on PR <${prUrl}|#${prNumber}> in *${repo}*. Semgrep will be skipped.`
-            };
-            await fetch(process.env.SLACK_WEBHOOK, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(message),
-            });
+#             // ✅ Send Slack alert for successful whitelist
+#             const repo = `${context.repo.owner}/${context.repo.repo}`;
+#             const prUrl = `https://github.com/${repo}/pull/${prNumber}`;
+#             const message = {
+#               text: `:white_check_mark: *Authorized* \`/skip-semgrep\` by *${commenter}* on PR <${prUrl}|#${prNumber}> in *${repo}*. Semgrep will be skipped.`
+#             };
+#             await fetch(process.env.SLACK_WEBHOOK, {
+#               method: 'POST',
+#               headers: { 'Content-Type': 'application/json' },
+#               body: JSON.stringify(message),
+#             });
