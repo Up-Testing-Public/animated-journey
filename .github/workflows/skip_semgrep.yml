@@ -1,0 +1,63 @@
+name: Skip Semgrep (private)
+
+on:
+  repository_dispatch:
+    types: [skip-semgrep]
+
+permissions:
+  checks: write
+  pull-requests: read
+
+jobs:
+  override:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark Semgrep check passed
+        id: mark
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.PAT_YOGENDRASRIVASTAVA }}
+          script: |
+            const prNumber = context.payload.client_payload.pr;
+            const actor    = context.payload.client_payload.actor;
+            if (!prNumber) throw new Error('client_payload.pr missing');
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              ref:   pr.head.sha
+            });
+
+            const semgrep = checks.check_runs.find(c =>
+              c.name.toLowerCase().includes('semgrep'));
+
+            if (!semgrep)
+              throw new Error('Semgrep check not found on latest commit');
+
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              check_run_id: semgrep.id,
+              conclusion: 'success',
+              output: {
+                title: 'Semgrep override',
+                summary: `False-positive override by ${actor}.`
+              }
+            });
+
+      - name: Post Slack confirmation
+        env:
+          WH: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          PR=${{ github.event.client_payload.pr }}
+          USER=${{ github.event.client_payload.actor }}
+          REPO=${{ github.repository }}
+          curl -s -X POST -H 'Content-type: application/json' \
+               -d "{\"text\":\":white_check_mark: Semgrep skipped for PR #${PR} in *${REPO}* by ${USER}\"}" \
+               "$WH"
