@@ -20,7 +20,8 @@ permissions:
 
 jobs:
   semgrep:
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-semgrep') }}
+    # if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-semgrep') }}
+    # job always runs; false-positives are handled via private override
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -82,7 +83,7 @@ jobs:
           curl -X POST -H 'Content-type: application/json' \
             --data @- "${{ secrets.SLACK_WEBHOOK_URL }}" <<EOF
           {
-            "text": ":rotating_light: *Semgrep Blocked PR*\n*Repo:* ${REPO}\n*PR #:* ${PR_NUMBER}\n<${PR_URL}|View and fix issues>"
+            "text": ":rotating_light: *Semgrep blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}*.\nTo override, run the *Slack workflow* `Skip Semgrep` with PR&nbsp;#: *${PR_NUMBER}*"
           }
           EOF
 
