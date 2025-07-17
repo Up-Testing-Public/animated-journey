@@ -11,7 +11,7 @@ on:
         required: true
 
 permissions:
-  checks: write          # needed for checks.update
+  checks: write
   pull-requests: read
 
 jobs:
@@ -23,27 +23,25 @@ jobs:
         with:
           github-token: ${{ secrets.PAT_YOGENDRASRIVASTAVA }}
           script: |
-            const prNumber = core.getInput('pr', { required: true });
-            const actor    = core.getInput('actor', { required: true });
-
+            // ── grab workflow-dispatch inputs ──────────────────────────────
+            const prNumber = context.payload.inputs.pr;
+            const actor    = context.payload.inputs.actor;
+            if (!prNumber)  throw new Error('pr input missing');
+            // ── look up latest commit on that PR ──────────────────────────
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo:  context.repo.repo,
               pull_number: prNumber
             });
-
             const { data: checks } = await github.rest.checks.listForRef({
               owner: context.repo.owner,
               repo:  context.repo.repo,
               ref:   pr.head.sha
             });
-
             const semgrep = checks.check_runs.find(c =>
               c.name.toLowerCase().includes('semgrep'));
-
-            if (!semgrep)
-              throw new Error('Semgrep check not found on latest commit');
-
+            if (!semgrep) throw new Error('Semgrep check not found');
+            // ── flip the check to success ─────────────────────────────────
             await github.rest.checks.update({
               owner: context.repo.owner,
               repo:  context.repo.repo,
@@ -63,5 +61,5 @@ jobs:
           USER=${{ github.event.inputs.actor }}
           REPO=${{ github.repository }}
           curl -s -X POST -H 'Content-type: application/json' \
-            -d "{\"text\":\":white_check_mark: Semgrep skipped for PR #${PR} in *${REPO}* by ${USER}\"}" \
-            "$WH"
+               -d "{\"text\":\":white_check_mark: Semgrep skipped for PR #${PR} in *${REPO}* by ${USER}\"}" \
+               "$WH"
