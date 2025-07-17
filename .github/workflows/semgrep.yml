@@ -50,7 +50,7 @@ jobs:
 
       - name: Check whitelist
         run: |
-          curl -s -X POST https://github-repo-automation-tool-uat.upstox.com/check_whitelist \
+          curl -s -X POST https://callback-uat.upstox.com/whitelist/check \
                -H "Content-Type: application/json" \
                -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
                -d '{"pr_url": "${{ github.event.pull_request.html_url }}"}' \
