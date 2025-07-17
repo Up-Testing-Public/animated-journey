@@ -24,6 +24,29 @@ jobs:
     # job always runs; false-positives are handled via private override
     runs-on: ubuntu-latest
     steps:
+      - name: Check whitelist
+        id: check_whitelist
+        run: |
+          curl -s -X POST https://callback-uat.upstox.com/whitelist \
+               -H "Content-Type: application/json" \
+               -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
+               -d '{"pr_url":"'"${{ github.event.pull_request.html_url }}"'"}' \
+               -o response.json
+      
+          echo "=== Raw response ==="
+          cat response.json || echo "response.json is empty"
+          echo "===================="
+      
+          WHITELISTED=$(jq -r '.whitelisted' response.json || echo "false")
+          echo "whitelisted=$WHITELISTED" >> $GITHUB_OUTPUT
+      
+          if [ "$WHITELISTED" == "true" ]; then
+            echo "✅ PR is whitelisted. Skipping scan."
+            exit 0
+          else
+            echo "🔍 PR not whitelisted. Proceeding to scan."
+          fi
+          
       - name: Checkout code
         uses: actions/checkout@v3
         with:
@@ -47,29 +70,9 @@ jobs:
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
           git fetch origin ${{ github.base_ref }}
-
-      - name: Check whitelist
-        run: |
-          curl -s -X POST https://callback-uat.upstox.com/whitelist \
-               -H "Content-Type: application/json" \
-               -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
-               -d '{"pr_url":"'"${{ github.event.pull_request.html_url }}"'"}' \
-               -o response.json
-      
-          echo "=== Raw response ==="
-          cat response.json || echo "response.json is empty"
-          echo "===================="
-      
-          WHITELISTED=$(jq -r '.whitelisted' response.json || echo "false")
-      
-          if [ "$WHITELISTED" == "true" ]; then
-            echo "✅ PR is whitelisted. Skipping scan."
-            exit 0
-          else
-            echo "🔍 PR not whitelisted. Proceeding to scan."
-          fi
    
       - name: Run Semgrep diff-only scan (gitleaks + secrets)
+        if: steps.check_whitelist.outputs.whitelisted != 'true'
         run: |
           echo "🚀 Semgrep diff scan (p/gitleaks + p/secrets) against origin/${{ github.base_ref }}"
           semgrep scan \
@@ -79,6 +82,7 @@ jobs:
             --error
 
       - name: Save JSON results
+        if: steps.check_whitelist.outputs.whitelisted != 'true'
         run: |
           semgrep scan \
             --config p/gitleaks \
@@ -87,6 +91,7 @@ jobs:
             --json > semgrep-results.json
 
       - name: Dump results to logs
+        if: steps.check_whitelist.outputs.whitelisted != 'true'
         run: cat semgrep-results.json
         
   notify_slack:
