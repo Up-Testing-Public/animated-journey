@@ -80,10 +80,12 @@ jobs:
           PR_URL=${{ github.event.pull_request.html_url }}
           REPO=${{ github.repository }}
 
+          RUN_LINK="https://github.com/${REPO}/actions/workflows/skip_semgrep.yml"
+
           curl -X POST -H 'Content-type: application/json' \
-            --data @- "${{ secrets.SLACK_WEBHOOK_URL }}" <<EOF
+            --data @- "$SLACK_WEBHOOK_URL" <<EOF
           {
-            "text": ":rotating_light: *Semgrep blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}*.\nTo override, run the *Slack workflow* `Skip Semgrep` with PR&nbsp;#: *${PR_NUMBER}*"
+            "text": ":rotating_light: *Semgrep blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}*.\nIf this is a false positive, click <${RUN_LINK}|Run Skip-Semgrep> and enter:\n• PR #: *${PR_NUMBER}*\n• Actor: *\${USER}*"
           }
           EOF
 
