@@ -1,11 +1,17 @@
-name: Skip Semgrep (private)
+name: Skip Semgrep (manual)
 
 on:
-  repository_dispatch:
-    types: [skip-semgrep]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'PR number to skip'
+        required: true
+      actor:
+        description: 'Who is overriding (GitHub or Slack username)'
+        required: true
 
 permissions:
-  checks: write
+  checks: write          # needed for checks.update
   pull-requests: read
 
 jobs:
@@ -13,14 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark Semgrep check passed
-        id: mark
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.PAT_YOGENDRASRIVASTAVA }}
           script: |
-            const prNumber = context.payload.client_payload.pr;
-            const actor    = context.payload.client_payload.actor;
-            if (!prNumber) throw new Error('client_payload.pr missing');
+            const prNumber = core.getInput('pr', { required: true });
+            const actor    = core.getInput('actor', { required: true });
 
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
@@ -32,7 +36,7 @@ jobs:
               owner: context.repo.owner,
               repo:  context.repo.repo,
               ref:   pr.head.sha
-            });
+            });                                                     // :contentReference[oaicite:2]{index=2}
 
             const semgrep = checks.check_runs.find(c =>
               c.name.toLowerCase().includes('semgrep'));
@@ -55,9 +59,9 @@ jobs:
         env:
           WH: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          PR=${{ github.event.client_payload.pr }}
-          USER=${{ github.event.client_payload.actor }}
+          PR=${{ github.event.inputs.pr }}
+          USER=${{ github.event.inputs.actor }}
           REPO=${{ github.repository }}
           curl -s -X POST -H 'Content-type: application/json' \
-               -d "{\"text\":\":white_check_mark: Semgrep skipped for PR #${PR} in *${REPO}* by ${USER}\"}" \
-               "$WH"
+            -d "{\"text\":\":white_check_mark: Semgrep skipped for PR #${PR} in *${REPO}* by ${USER}\"}" \
+            "$WH"
