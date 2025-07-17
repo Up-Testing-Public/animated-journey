@@ -36,7 +36,7 @@ jobs:
               owner: context.repo.owner,
               repo:  context.repo.repo,
               ref:   pr.head.sha
-            });                                                     // :contentReference[oaicite:2]{index=2}
+            });
 
             const semgrep = checks.check_runs.find(c =>
               c.name.toLowerCase().includes('semgrep'));
