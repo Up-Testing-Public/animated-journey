@@ -52,7 +52,6 @@ jobs:
         run: |
           curl -s -X POST https://callback-uat.upstox.com/check_whitelist \
                -H "Content-Type: application/json" \
-               -X GET \
                -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
                -d '{"pr_url": "${{ github.event.pull_request.html_url }}"}' \
                -o response.json
