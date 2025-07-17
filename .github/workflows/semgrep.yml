@@ -56,7 +56,11 @@ jobs:
                -d '{"pr_url": "${{ github.event.pull_request.html_url }}"}' \
                -o response.json
       
-          WHITELISTED=$(jq -r '.whitelisted' response.json)
+          echo "=== Raw response ==="
+          cat response.json || echo "response.json is empty"
+          echo "===================="
+      
+          WHITELISTED=$(jq -r '.whitelisted' response.json || echo "false")
       
           if [ "$WHITELISTED" == "true" ]; then
             echo "✅ PR is whitelisted. Skipping scan."
@@ -64,7 +68,7 @@ jobs:
           else
             echo "🔍 PR not whitelisted. Proceeding to scan."
           fi
-          
+   
       - name: Run Semgrep diff-only scan (gitleaks + secrets)
         run: |
           echo "🚀 Semgrep diff scan (p/gitleaks + p/secrets) against origin/${{ github.base_ref }}"
