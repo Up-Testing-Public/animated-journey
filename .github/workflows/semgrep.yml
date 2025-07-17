@@ -48,6 +48,22 @@ jobs:
           git config --global --add safe.directory $GITHUB_WORKSPACE
           git fetch origin ${{ github.base_ref }}
 
+      - name: Check whitelist
+        run: |
+          curl -s -X POST https://callback-uat.upstox.com/check_whitelist \
+               -H "Content-Type: application/json" \
+               -d '{"pr_url": "${{ github.event.pull_request.html_url }}"}' \
+               -o response.json
+      
+          WHITELISTED=$(jq -r '.whitelisted' response.json)
+      
+          if [ "$WHITELISTED" == "true" ]; then
+            echo "✅ PR is whitelisted. Skipping scan."
+            exit 0
+          else
+            echo "🔍 PR not whitelisted. Proceeding to scan."
+          fi
+          
       - name: Run Semgrep diff-only scan (gitleaks + secrets)
         run: |
           echo "🚀 Semgrep diff scan (p/gitleaks + p/secrets) against origin/${{ github.base_ref }}"
