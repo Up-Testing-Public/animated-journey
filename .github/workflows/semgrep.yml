@@ -50,7 +50,7 @@ jobs:
 
       - name: Check whitelist
         run: |
-          curl -s -X POST https://callback-uat.upstox.com/check_whitelist \
+          curl -s -X POST https://github-repo-automation-tool-uat.upstox.com/check_whitelist \
                -H "Content-Type: application/json" \
                -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
                -d '{"pr_url": "${{ github.event.pull_request.html_url }}"}' \
@@ -107,13 +107,10 @@ jobs:
           REPO=${{ github.repository }}
           ACTOR=${{ github.actor }}                               # who triggered the run
 
-          # Link to the manual Skip-Semgrep workflow
-          RUN_LINK="https://github.com/${REPO}/actions/workflows/skip_semgrep.yml"
-
           curl -X POST -H 'Content-type: application/json' \
                --data @- "$SLACK_WEBHOOK_URL" <<EOF
           {
-            "text": ":rotating_light: *Semgrep blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}*.\nIf this is a false positive, click <${RUN_LINK}|Run Skip-Semgrep> and enter:\n• PR #: *${PR_NUMBER}*\n• Actor: *${ACTOR}*"
+            "text": ":rotating_light: *Semgrep scan blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}* (triggered by *${ACTOR}*).\nIf this is a false positive, use */whitelist-pr ${PR_URL}* in Slack to approve and re-run."
           }
           EOF
 
