@@ -73,19 +73,30 @@ jobs:
     needs: semgrep
     if: ${{ always() && needs.semgrep.result == 'failure' && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
+
     steps:
+      # ── expose the secret so the next step can use it ──
+      - name: Export Slack webhook (no-op)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: echo "webhook ready"
+
       - name: Send Slack alert
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           PR_URL=${{ github.event.pull_request.html_url }}
           REPO=${{ github.repository }}
+          ACTOR=${{ github.actor }}                               # who triggered the run
 
+          # Link to the manual Skip-Semgrep workflow
           RUN_LINK="https://github.com/${REPO}/actions/workflows/skip_semgrep.yml"
 
           curl -X POST -H 'Content-type: application/json' \
-            --data @- "$SLACK_WEBHOOK_URL" <<EOF
+               --data @- "$SLACK_WEBHOOK_URL" <<EOF
           {
-            "text": ":rotating_light: *Semgrep blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}*.\nIf this is a false positive, click <${RUN_LINK}|Run Skip-Semgrep> and enter:\n• PR #: *${PR_NUMBER}*\n• Actor: *\${USER}*"
+            "text": ":rotating_light: *Semgrep blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}*.\nIf this is a false positive, click <${RUN_LINK}|Run Skip-Semgrep> and enter:\n• PR #: *${PR_NUMBER}*\n• Actor: *${ACTOR}*"
           }
           EOF
 
