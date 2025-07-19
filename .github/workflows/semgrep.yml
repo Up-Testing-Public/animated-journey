@@ -119,7 +119,7 @@ jobs:
           curl -X POST -H 'Content-type: application/json' \
                --data @- "$SLACK_WEBHOOK_URL" <<EOF
           {
-            "text": ":rotating_light: *Semgrep scan blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}* (triggered by *${ACTOR}*).\nIf this is a false positive, use */whitelist-pr ${PR_URL}* in Slack to approve and re-run."
+            "text": ":rotating_light: *Semgrep scan blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}* (triggered by *${ACTOR}*).\nIf this is a false positive, use */github-whitelist-pr ${PR_URL}* in Slack to approve and re-run."
           }
           EOF
 
