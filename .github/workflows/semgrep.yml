@@ -32,7 +32,7 @@ jobs:
                -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
                -d '{"pr_url":"'"${{ github.event.pull_request.html_url }}"'"}' \
                -o response.json
-      
+
           echo "=== Raw response ==="
           cat response.json || echo "response.json is empty"
           echo "===================="
@@ -40,8 +40,8 @@ jobs:
           PR_URL="${{ github.event.pull_request.html_url }}"
           PR_CLEAN=$(echo "$PR_URL" | xargs)
 
-          jq -e --arg pr "$PR_CLEAN" '.exemptions[]? | select(.pr_url == $pr)' response.json > /dev/null
-          if [ $? -eq 0 ]; then
+          # ← Do the jq check _inside_ an if, so bash -e won't kill us on no-match
+          if jq -e --arg pr "$PR_CLEAN" '.exemptions[]? | select(.pr_url == $pr)' response.json > /dev/null 2>&1; then
             echo "whitelisted=true" >> $GITHUB_OUTPUT
             echo "✅ PR is whitelisted. Skipping scan."
             exit 0
@@ -49,7 +49,7 @@ jobs:
             echo "whitelisted=false" >> $GITHUB_OUTPUT
             echo "🔍 PR not whitelisted. Proceeding to scan."
           fi
-   
+
       - name: Checkout code
         uses: actions/checkout@v3
         with:
