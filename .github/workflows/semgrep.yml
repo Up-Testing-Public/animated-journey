@@ -36,11 +36,13 @@ jobs:
           echo "=== Raw response ==="
           cat response.json || echo "response.json is empty"
           echo "===================="
-      
-          WHITELISTED=$(jq -r '.whitelisted' response.json || echo "false")
+
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          WHITELISTED=$(jq -r --arg pr "$PR_URL" '[.exemptions[]?.pr_url] | index($pr)' response.json)
+          WHITELISTED=${WHITELISTED:-null}
           echo "whitelisted=$WHITELISTED" >> $GITHUB_OUTPUT
-      
-          if [ "$WHITELISTED" == "true" ]; then
+
+          if [ "$WHITELISTED" != "null" ]; then
             echo "✅ PR is whitelisted. Skipping scan."
             exit 0
           else
@@ -72,7 +74,8 @@ jobs:
           git fetch origin ${{ github.base_ref }}
    
       - name: Run Semgrep diff-only scan (gitleaks + secrets)
-        if: steps.check_whitelist.outputs.whitelisted != 'true'
+        # if: steps.check_whitelist.outputs.whitelisted != 'true'
+        if: ${{ steps.check_whitelist.outputs.whitelisted == 'null' }}
         run: |
           echo "🚀 Semgrep diff scan (p/gitleaks + p/secrets) against origin/${{ github.base_ref }}"
           semgrep scan \
@@ -82,7 +85,8 @@ jobs:
             --error
 
       - name: Save JSON results
-        if: steps.check_whitelist.outputs.whitelisted != 'true'
+        # if: steps.check_whitelist.outputs.whitelisted != 'true'
+        if: ${{ steps.check_whitelist.outputs.whitelisted == 'null' }}
         run: |
           semgrep scan \
             --config p/gitleaks \
@@ -91,7 +95,8 @@ jobs:
             --json > semgrep-results.json
 
       - name: Dump results to logs
-        if: steps.check_whitelist.outputs.whitelisted != 'true'
+        # if: steps.check_whitelist.outputs.whitelisted != 'true'
+        if: ${{ steps.check_whitelist.outputs.whitelisted == 'null' }}
         run: cat semgrep-results.json
         
   notify_slack:
@@ -114,12 +119,12 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number }}
           PR_URL=${{ github.event.pull_request.html_url }}
           REPO=${{ github.repository }}
-          ACTOR=${{ github.actor }}                               # who triggered the run
+          ACTOR=${{ github.actor }}
 
           curl -X POST -H 'Content-type: application/json' \
                --data @- "$SLACK_WEBHOOK_URL" <<EOF
           {
-            "text": ":rotating_light: *Semgrep scan blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}* (triggered by *${ACTOR}*).\nIf this is a false positive, use */github-whitelist-pr ${PR_URL}* in Slack to approve and re-run."
+            "text": ":rotating_light: *Semgrep scan blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}* (triggered by *${ACTOR}*).\nIf this is a false positive, use \`/whitelist-pr ${PR_URL} reason:\"<reason>\" eta:\"YYYY-MM-DD\" bug:\"SEC-1234\"\` in Slack to approve and re-run."
           }
           EOF
 
