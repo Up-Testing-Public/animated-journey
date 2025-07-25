@@ -122,11 +122,9 @@ jobs:
         run: cat semgrep-results.json
         
   notify_slack:
-    if: ${{ always() && github.event_name == 'pull_request' && needs.semgrep.result == 'failure' }}
+    if: ${{ github.event_name == 'pull_request' && needs.semgrep.result == 'failure' }}
     needs: semgrep
     name: Notify Slack on blocked PR
-    needs: semgrep
-    if: ${{ always() && needs.semgrep.result == 'failure' && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -158,8 +156,6 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && needs.semgrep.result == 'success' }}
     needs: semgrep
     name: Auto-approve if Semgrep passes
-    needs: semgrep
-    if: ${{ needs.semgrep.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
