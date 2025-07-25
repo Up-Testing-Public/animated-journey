@@ -12,7 +12,7 @@ on:
   schedule:
     - cron: '50 12 * * *'
 
-name: Semgrep OSS Diff Scan
+name: Security Check Scan
 
 permissions:
   contents: read
@@ -21,7 +21,7 @@ permissions:
 jobs:
   guard_whitelist_expiry:
     if: ${{ github.event_name == 'pull_request' }}
-    name: Fail if any whitelist ETA is expired
+    name: checking eta
     runs-on: ubuntu-latest
     steps:
       - name: Download complete whitelist
@@ -90,7 +90,7 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install Semgrep OSS
+      - name: Install security check
         run: pip install semgrep
 
       - name: Fix Git and fetch base branch
@@ -98,7 +98,7 @@ jobs:
           git config --global --add safe.directory $GITHUB_WORKSPACE
           git fetch origin ${{ github.base_ref }}
    
-      - name: Run Semgrep diff-only scan (gitleaks + secrets)
+      - name: Run diff check with secrets check
         if: ${{ steps.check_whitelist.outputs.whitelisted == 'false' }}
         run: |
           echo "🚀 Semgrep diff scan (p/gitleaks + p/secrets) against origin/${{ github.base_ref }}"
@@ -124,7 +124,7 @@ jobs:
   notify_slack:
     needs: semgrep
     if: ${{ always() && github.event_name == 'pull_request' && needs.semgrep.result == 'failure' }}
-    name: Notify Slack on blocked PR
+    name: Notify if blocked
     runs-on: ubuntu-latest
 
     steps:
@@ -155,7 +155,7 @@ jobs:
   approve:
     if: ${{ github.event_name == 'pull_request' && needs.semgrep.result == 'success' }}
     needs: semgrep
-    name: Auto-approve if Semgrep passes
+    name: Auto-approve if security check passes
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
