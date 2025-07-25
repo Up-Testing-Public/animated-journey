@@ -19,9 +19,31 @@ permissions:
   pull-requests: write
 
 jobs:
+  guard_whitelist_expiry:
+    name: Fail if any whitelist ETA is expired
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download complete whitelist
+        run: |
+          curl -s -X POST https://callback-uat.upstox.com/github-whitelist \
+               -H "Content-Type: application/json" \
+               -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
+               -d '{"pr_url":""}' \
+               -o all.json
+
+      - name: Check for expired entries
+        run: |
+          TODAY=$(date +%F)
+          EXPIRED=$(jq -r --arg t "$TODAY" \
+            '(.exemptions // []) | map(select(.eta <= $t)) | length' all.json)
+
+          if [ "$EXPIRED" -gt 0 ]; then
+            echo "::error ::There are $EXPIRED whitelist exemptions past their ETA.  Clean them up before merging."
+            exit 1
+          fi
+
   semgrep:
-    # if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-semgrep') }}
-    # job always runs; false-positives are handled via private override
+    needs: guard_whitelist_expiry
     runs-on: ubuntu-latest
     steps:
       - name: Check whitelist
