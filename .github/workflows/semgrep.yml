@@ -122,8 +122,8 @@ jobs:
         run: cat semgrep-results.json
         
   notify_slack:
-    if: ${{ github.event_name == 'pull_request' && needs.semgrep.result == 'failure' }}
     needs: semgrep
+    if: ${{ always() && github.event_name == 'pull_request' && needs.semgrep.result == 'failure' }}
     name: Notify Slack on blocked PR
     runs-on: ubuntu-latest
 
