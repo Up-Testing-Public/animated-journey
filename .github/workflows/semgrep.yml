@@ -20,6 +20,7 @@ permissions:
 
 jobs:
   guard_whitelist_expiry:
+    if: github.event_name == 'pull_request'
     name: Fail if any whitelist ETA is expired
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +44,7 @@ jobs:
           fi
 
   semgrep:
+    if: github.event_name == 'pull_request'
     needs: guard_whitelist_expiry
     runs-on: ubuntu-latest
     steps:
@@ -120,6 +122,8 @@ jobs:
         run: cat semgrep-results.json
         
   notify_slack:
+    if: github.event_name == 'pull_request' && always() && needs.semgrep.result == 'failure'
+    needs: semgrep
     name: Notify Slack on blocked PR
     needs: semgrep
     if: ${{ always() && needs.semgrep.result == 'failure' && github.event_name == 'pull_request' }}
@@ -151,6 +155,8 @@ jobs:
                "$SLACK_WEBHOOK_URL"
 
   approve:
+    if: github.event_name == 'pull_request' && needs.semgrep.result == 'success'
+    needs: semgrep
     name: Auto-approve if Semgrep passes
     needs: semgrep
     if: ${{ needs.semgrep.result == 'success' }}
