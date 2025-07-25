@@ -121,7 +121,7 @@ jobs:
 
           # Build a JSON payload with a here-doc inside a subshell—never fails under bash -e
           PAYLOAD=$(cat <<EOF
-          {"text": ":rotating_light: *Semgrep scan blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}* (triggered by *${ACTOR}*).\nIf this is a false positive, run this command:\n\n\`/github-whitelist-pr ${PR_URL} reason:<reason> eta:YYYY-MM-DD bug:SEC-1234\`"}
+          {"text": ":rotating_light: *Semgrep scan blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}* (triggered by *${ACTOR}*).\nIf this is a false positive, run this command:\n\n\`/github-whitelist-pr ${PR_URL} reason:\\\"<reason>\\\" eta:\\\"YYYY-MM-DD\\\" bug:\\\"SEC-1234\\\"\\`"}
           EOF
           )
           
