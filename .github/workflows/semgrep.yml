@@ -119,15 +119,15 @@ jobs:
           REPO=${{ github.repository }}
           ACTOR=${{ github.actor }}
 
-          # Build a JSON payload, escaping the backticks so Bash doesn’t execute them.
-          read -r -d '' PAYLOAD <<EOF
+          # Build a JSON payload with a here-doc inside a subshell—never fails under bash -e
+          PAYLOAD=$(cat <<EOF
           {"text": ":rotating_light: *Semgrep scan blocked* <${PR_URL}|PR #${PR_NUMBER}> in *${REPO}* (triggered by *${ACTOR}*).\nIf this is a false positive, run this command:\n\n\`/github-whitelist-pr ${PR_URL} reason:<reason> eta:YYYY-MM-DD bug:SEC-1234\`"}
           EOF
-
+          )
+          
           curl -X POST -H 'Content-Type: application/json' \
                --data "$PAYLOAD" \
                "$SLACK_WEBHOOK_URL"
-
 
   approve:
     name: Auto-approve if Semgrep passes
