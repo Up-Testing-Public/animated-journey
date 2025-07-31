@@ -148,7 +148,7 @@ jobs:
 
           # Build JSON safely
           PAYLOAD=$(printf \
-          '{"text": ":rotating_light: *Semgrep scan blocked* <%s|PR #%s> in *%s* (triggered by *%s*).\\nIf this is a false positive, run this command:\\n\\n`/github-whitelist-pr %s reason:\\"<reason>\\" eta:\\"YYYY-MM-DD\\" bug:\\"SEC-1234\\" tribe:\\"<tribe-name>\\"`"}' \
+          '{"text": ":rotating_light: *Semgrep scan blocked* <%s|PR #%s> in *%s* (triggered by *%s*).\\nIf this is a false positive, run this command:\\n\\n`/github-whitelist-pr %s reason:\\"<reason>\\" eta:\\"YYYY-MM-DD\\" bug:\\"SEC-1234\\" tribe:\\"<t-tribe-name>\\"`"}' \
           "$PR_URL" "$PR_NUMBER" "$REPO" "$ACTOR" "$PR_URL")
 
           curl -X POST -H 'Content-Type: application/json' \
