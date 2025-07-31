@@ -35,13 +35,16 @@ jobs:
       - name: Check for expired entries
         run: |
           TODAY=$(date +%F)
-          EXPIRED=$(jq -r --arg t "$TODAY" \
-            '(.exemptions // []) | map(select(.eta <= $t)) | length' all.json)
+          REPO_FULL="https://github.com/${GITHUB_REPOSITORY}"
+          EXPIRED=$(jq -r --arg t "$TODAY" --arg repo "$REPO_FULL" \
+            '(.exemptions // []) | map(select(.eta <= $t and (.pr_url | startswith($repo)))) | length' all.json)
 
           if [ "$EXPIRED" -gt 0 ]; then
-            echo "::error ::There are $EXPIRED whitelist exemptions past their ETA.  Clean them up before merging."
+            echo "::error ::🔒 $EXPIRED whitelist exemption(s) for this repository (${GITHUB_REPOSITORY}) are past their ETA."
+            echo "❌ Please remove or update the expired entries from the whitelist file before merging this PR."
             exit 1
           fi
+
 
   semgrep:
     if: ${{ github.event_name == 'pull_request' }}
