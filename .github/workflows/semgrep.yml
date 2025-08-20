@@ -26,7 +26,7 @@ jobs:
     steps:
       - name: Download complete whitelist
         run: |
-          curl -s -X POST https://callback-uat.upstox.com/github-whitelist \
+          curl -s -X POST "${{ secrets.WHITELIST_CALLBACK_URL }}" \
                -H "Content-Type: application/json" \
                -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
                -d '{"pr_url":""}' \
@@ -54,7 +54,7 @@ jobs:
       - name: Check whitelist
         id: check_whitelist
         run: |
-          curl -s -X POST https://callback-uat.upstox.com/github-whitelist \
+          curl -s -X POST "${{ secrets.WHITELIST_CALLBACK_URL }}" \
                -H "Content-Type: application/json" \
                -H "X-API-KEY: ${{ secrets.sg_wh_api_key }}" \
                -d '{"pr_url":"'"${{ github.event.pull_request.html_url }}"'"}' \
@@ -147,9 +147,9 @@ jobs:
           ACTOR=${{ github.actor }}
 
           # Build JSON safely
-          PAYLOAD=$(printf \
-          '{"text": ":rotating_light: *Semgrep scan blocked* <%s|PR #%s> in *%s* (triggered by *%s*).\\nIf this is a false positive, run this command:\\n\\n`/github-whitelist-pr %s reason:\\"<reason>\\" eta:\\"YYYY-MM-DD\\" bug:\\"SEC-1234\\" tribe:\\"<t-tribe-name>\\"`"}' \
-          "$PR_URL" "$PR_NUMBER" "$REPO" "$ACTOR" "$PR_URL")
+          PAYLOAD=$(printf '{
+            "text": ":rotating_light: *Semgrep scan blocked* <%s|PR #%s> in *%s* (triggered by *%s*).\nIf this is a false positive, run this command:\n\n`/github-whitelist-pr %s reason:\\"<reason>\\" eta:\\"YYYY-MM-DD\\" bug:\\"SEC-1234\\" tribe:\\"<t-tribe-name>\\"`"
+          }' "$PR_URL" "$PR_NUMBER" "$REPO" "$ACTOR" "$PR_URL")
 
           curl -X POST -H 'Content-Type: application/json' \
                --data "$PAYLOAD" \
@@ -167,4 +167,4 @@ jobs:
       - name: Approve PR
         run: gh pr review --approve "${{ github.event.pull_request.html_url }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_YOGENDRASRIVASTAVA }}
+          GITHUB_TOKEN: ${{ secrets.PAT_SECURITYREVIEWUSER }}
