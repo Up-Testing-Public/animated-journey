@@ -45,9 +45,9 @@ jobs:
             exit 1
           fi
 
-
-  semgrep:
+  sec_checks:
     if: ${{ github.event_name == 'pull_request' }}
+    name: Run required verification
     needs: guard_whitelist_expiry
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +67,6 @@ jobs:
           PR_URL="${{ github.event.pull_request.html_url }}"
           PR_CLEAN=$(echo "$PR_URL" | xargs)
 
-          # ← Do the jq check _inside_ an if, so bash -e won't kill us on no-match
           if jq -e --arg pr "$PR_CLEAN" '.exemptions[]? | select(.pr_url == $pr)' response.json > /dev/null 2>&1; then
             echo "whitelisted=true" >> $GITHUB_OUTPUT
             echo "✅ PR is whitelisted. Skipping scan."
@@ -100,11 +99,11 @@ jobs:
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
           git fetch origin ${{ github.base_ref }}
-   
-      - name: Run diff check with secrets check
+
+      - name: Run diff check
         if: ${{ steps.check_whitelist.outputs.whitelisted == 'false' }}
         run: |
-          echo "🚀 Semgrep diff scan (p/gitleaks + p/secrets) against origin/${{ github.base_ref }}"
+          echo "🚀 Running diff scan against origin/${{ github.base_ref }}"
           semgrep scan \
             --config p/gitleaks \
             --config p/secrets \
@@ -123,15 +122,14 @@ jobs:
       - name: Dump results to logs
         if: ${{ steps.check_whitelist.outputs.whitelisted == 'false' }}
         run: cat semgrep-results.json
-        
-  notify_slack:
-    needs: semgrep
-    if: ${{ always() && github.event_name == 'pull_request' && needs.semgrep.result == 'failure' }}
+
+  notify_blocked:
+    needs: sec_checks
+    if: ${{ always() && github.event_name == 'pull_request' && needs.sec_checks.result == 'failure' }}
     name: Notify if blocked
     runs-on: ubuntu-latest
 
     steps:
-      # ── expose the secret so the next step can use it ──
       - name: Export Slack webhook (no-op)
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -146,9 +144,8 @@ jobs:
           REPO=${{ github.repository }}
           ACTOR=${{ github.actor }}
 
-          # Build JSON safely
           PAYLOAD=$(printf '{
-            "text": ":rotating_light: *Semgrep scan blocked* <%s|PR #%s> in *%s* (triggered by *%s*).\nIf this is a false positive, run this command:\n\n`/github-whitelist-pr %s reason:\\"<reason>\\" eta:\\"YYYY-MM-DD\\" bug:\\"SEC-1234\\" tribe:\\"<t-tribe-name>\\"`"
+            "text": ":rotating_light: *Security check failed* <%s|PR #%s> in *%s* (triggered by *%s*).\nIf this is a false positive, run this command:\n\n`/github-whitelist-pr %s reason:\\"<reason>\\" eta:\\"YYYY-MM-DD\\" bug:\\"SEC-1234\\" tribe:\\"<t-tribe-name>\\"`"
           }' "$PR_URL" "$PR_NUMBER" "$REPO" "$ACTOR" "$PR_URL")
 
           curl -X POST -H 'Content-Type: application/json' \
@@ -156,8 +153,8 @@ jobs:
                "$SLACK_WEBHOOK_URL"
 
   approve:
-    if: ${{ github.event_name == 'pull_request' && needs.semgrep.result == 'success' }}
-    needs: semgrep
+    if: ${{ github.event_name == 'pull_request' && needs.sec_checks.result == 'success' }}
+    needs: sec_checks
     name: Auto-approve if security check passes
     runs-on: ubuntu-latest
     steps:
@@ -167,4 +164,4 @@ jobs:
       - name: Approve PR
         run: gh pr review --approve "${{ github.event.pull_request.html_url }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_YOGENDRASRIVASTAVA }}
+          GITHUB_TOKEN: ${{ secrets.PAT_SECURITYREVIEWUSER }}
